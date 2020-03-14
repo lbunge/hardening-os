@@ -1,0 +1,18 @@
+- 0.6: 
+[Change] project renamed from PMON (Port Mon aka Socket Mon) too LSM 
+	 (Linux Socket Monitor)
+
+- 0.5:
+[New] added trigger value for false positive filtering of tmp client binds
+[New] added sleep wait value between trigger rechecks
+
+- 0.4:
+[Fix] corrected white-space problem with base files
+[Change] changed comparison colums of base and runtime comparison files
+[Change] new installer script
+[Change] cronjob changed to 10 minutes based on cron.d/pmon file
+[New] added CHANGELOG and COPYING.GPL files to top level archive
+[Change] revisions to README file
+
+- 0.3:
+First public release

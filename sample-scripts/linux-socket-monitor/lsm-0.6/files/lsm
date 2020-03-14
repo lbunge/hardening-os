@@ -1,0 +1,188 @@
+#!/bin/sh
+#
+# LSM 0.6 [lsm@r-fx.org]
+###
+# Copyright (C) 2004, R-fx Networks <proj@r-fx.org>
+# Copyright (C) 2004, Ryan MacDonald <ryan@r-fx.org>
+#
+#    This program is free software; you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation; either version 2 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License
+#    along with this program; if not, write to the Free Software
+#    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+###
+#
+INSPATH="/usr/local/lsm"
+CNF="$INSPATH/conf.lsm"
+V="0.6"
+TRIG=0
+
+if [ ! -f "$CNF" ]; then
+	echo "could not find lsm.conf, aborting"
+	exit 1
+else
+	. $CNF
+fi
+
+header() {
+cat <<EOF
+LSM version 0.6 <lsm@r-fx.org>
+Copyright (C) 2004, R-fx Networks
+              2004, Ryan MacDonald
+This program may be freely redistributed under the terms of the GNU GPL
+EOF
+}
+
+tmpf() {
+ARG="$1"
+if [ -f "$ARG" ]; then
+        rm -f $ARG
+        touch $ARG
+        chmod 600 $ARG
+else
+        touch $ARG
+        chmod 600 $ARG
+fi
+}
+
+clean_fin() {
+	rm -f $NS_CACHE
+	rm -f $INSPATH/.netst
+	rm -f $INSPATH/.udsst
+	exit 0
+}
+
+gen() {
+# Creat our cache file
+tmpf $NS_CACHE
+netstat -npl > $NS_CACHE
+
+# Creat our status file
+tmpf $NETST
+tmpf $SERVLNET
+
+# Internet Connections
+cat $NS_CACHE | grep -wvf $IGNORE | grep -w LISTEN | tr '/' ' ' | awk '{print$4 " " $8}' | sort -n > $NETST
+cat $NS_CACHE | grep -wvf $IGNORE | grep -w LISTEN | awk '{print$4}' | sort -n > $SERVLNET
+
+tmpf $INSPATH/tmp.$$
+for str in `cat $SERVLNET`; do
+if [ ! "$str" == "" ]; then
+	echo "$str" >> $INSPATH/tmp.$$
+fi
+done
+
+if [ -f "$INSPATH/tmp.$$" ]; then
+	mv $INSPATH/tmp.$$ $SERVLNET
+else
+	echo "failed to generate base comparison files, aborting."
+	exit 1
+fi
+
+# Creat our status file
+tmpf $UDSST
+tmpf $SERVLUDS
+
+# UDS (Unix domain sockets)
+cat $NS_CACHE | grep -wvf $IGNORE | grep -wf $UDS_PATTERN | tr '/' ' ' | awk '{print$6" "$7" "$10}' | sort -n > $UDSST
+cat $NS_CACHE | grep -wvf $IGNORE | grep -wf $UDS_PATTERN | tr '/' ' ' | awk '{print$10}' > $SERVLUDS
+
+echo "generated base comparison files"
+}
+
+delg () {
+	rm -f $NETST
+	rm -f $UDSST
+	rm -f $SERVLNET
+	rm -f $SERVLUDS
+	echo "deleted base comparison files"
+}
+
+alert_ev() {
+ . $STGEN | mail -s "$SUB" "$USER"
+ $0 -g >> /dev/null 2>&1
+}
+
+comp() {
+if [ ! -f "$NETST" ]; then
+	echo "base comparison files not found, aborting"
+	clean_fin
+elif [ ! -f "$UDSST" ]; then
+        echo "base comparison files not found, aborting"
+        clean_fin
+fi
+
+# Creat our cache file
+tmpf $NS_CACHE
+netstat -npl > $NS_CACHE
+
+# Creat our status file
+tmpf $INSPATH/.netst
+
+# Internet Connections
+cat $NS_CACHE | grep -wvf $IGNORE | grep -w LISTEN | sort -n > $INSPATH/.netst
+
+# Creat our status file
+tmpf $INSPATH/.udsst
+
+# UDS (Unix domain sockets)
+cat $NS_CACHE | grep -wvf $IGNORE | grep -wf $UDS_PATTERN | sort -n > $INSPATH/.udsst
+
+
+DIFF_NET=`diff $NETST $INSPATH/.netst | grep -w LISTEN | grep -wvf $SERVLNET`
+DIFF_NET_PIDS=`diff $NETST $INSPATH/.netst | grep -w LISTEN | grep -wvf $SERVLNET | tr '/' ' ' | awk '{print$8}'`
+DIFF_UDS=`diff $UDSST $INSPATH/.udsst | grep -w $UDS_PATTERN | grep -wvf $SERVLUDS`
+
+if [ -z "$DIFF_NET" ] && [ -z "$DIFF_UDS" ]; then
+	echo "no changes in domain sockets or internet server sockets"
+elif [ ! -z "$DIFF_NET" ]; then
+	TRIG=$[TRIG+1]
+	if [ "$TRIG" -eq "$TMAX" ]; then
+	echo "changes found in internet server sockets"
+	ALERT="true"
+	else
+		sleep $SVAL
+		comp
+	fi
+elif [ ! -z "$DIFF_UDS" ]; then
+	TRIG=[TRIG+1]
+	if [ "$TRIG" -eq "$TMAX" ]; then
+	echo "changes found in domain sockets"
+	ALERT="true"
+	else
+		sleep $SVAL
+		comp
+	fi
+fi
+}
+
+header
+echo ""
+case "$1" in
+-g)
+	gen
+	clean_fin
+	;;
+-c)
+	comp
+if [ "$ALERT" = "true" ]; then
+        alert_ev
+        ALERT=""
+fi
+	clean_fin
+	;;
+-d)
+	delg
+	;;
+*)
+	echo "usage: $0 [-g] [-c] [-d]"
+esac
+exit 0

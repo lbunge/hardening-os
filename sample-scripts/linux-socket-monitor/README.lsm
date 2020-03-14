@@ -1,0 +1,60 @@
+Linux Socket Monitor 0.6
+
+1) What is LSM
+LSM is a bash scripted network socket monitor. It is designed to track
+changes to Network sockets and Unix domain sockets.
+
+A comprehensive alert system, simple program usage & installation make LSM
+ideal for deployment in any linux environment (geared for web servers). Using
+a rather simple yet logical structure, LSM identifies changes in both
+Network Sockets and Unix Domain Sockets. By recording a base set of what
+sockets should be active then comparing the currently active socket information
+to that of the base comparison files, we highlight otherwise unknown services.
+
+LSM will ignore services that are currently holding sockets open. Events are
+only applicable when a 'new' socket is created, be it UDS Stream Socket or TCP
+Network Socket, LSM will identify it. Currently LSM does not track DGRAM Unix
+Domain Sockets, but will in the future.
+
+2) Setup
+To setup LSM, simply execute the 'install.sh' script inside the extraced path.
+This will install LSM to /usr/local/lsm, and symlink its executable to
+/usr/local/sbin/lsm. As well, there will be a cron.d entry added to
+/etc/cron.d/lsm, set to run it once every 10 minutes.
+
+3) Usage
+LSM has 3 arguments that perform the following operations respectivly:
+-g    Generate base comparision files
+-c    Compare current socket information to comparision files
+-d    Delete base comparision files
+
+Upon installation, LSM generates its base comparison files, but we recommend
+you manualy do so to ensure it has been done.
+
+# /usr/local/sbin/lsm -g
+
+Then to check for changes in sockets, use the -c argument. This will compare
+the current sockets running, with the generated base comparision files. If any
+changes are found you will be notified, otherwise it will note if no changes
+are present.
+
+When changes are found, LSM issues an email alert to the configured addresses
+in /usr/local/lsm/lsm.conf. Details about changes will not be printed to
+screen, in future i will creat a lsm.log of sometype. However my goal at this
+point was to creat a socket monitor that issues email alerts.
+
+4) License:
+LSM is developed and supported on a volunteer basis by Ryan MacDonald
+[ryan@r-fx.org]
+
+LSM is distributed under the GNU General Public License (GPL) without
+restrictions on usage or redistribution. The LSM copyright statement, and
+GNU GPL, "COPYING.GPL" are included in the top-level directory of the
+distribution. Credit must be given for derivative works as required under GNU
+GPL.
+
+5) Support:
+All inquiries relating to SysBK should be directed to LSM@r-fx.org or check
+the r-fx.org projects homepage at:
+http://www.r-fx.org/proj.php
+

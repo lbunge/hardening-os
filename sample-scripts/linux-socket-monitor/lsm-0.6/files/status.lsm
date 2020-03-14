@@ -1,0 +1,36 @@
+#!/bin/sh
+cat <<EOF
+This is an automated alert generated from $HOSTNAME. This alert is to notify the addressed users of new server sockets. New server sockets can indicate server-software that has been started on your host, or otherwise be an indication to malicious activity. It is advised to review this alert and investigate the new listening service if it is unauthorized.
+
+Following is a summary of new Internet Server Sockets:
+EOF
+
+if [ -z "$DIFF_NET" ]; then
+cat <<EOF
+no changes to Internet Server Sockets
+EOF
+else
+cat <<EOF
+$DIFF_NET
+EOF
+ if [ "$DIFF_NET_PIDS" ]; then
+        for pid in $DIFF_NET_PIDS; do
+                lsof -n -p $pid | grep cwd | grep -v "^COMMAND"
+        done
+ fi
+fi
+
+echo ""
+
+cat <<EOF
+Following is a summary of a new Unix Domain Sockets:
+EOF
+if [ -z "$DIFF_UDS" ]; then
+	cat <<EOF
+no changes to Unix Domain Sockets
+EOF
+else
+	cat <<EOF
+$DIFF_UDS
+EOF
+fi
